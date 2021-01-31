@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # @Last Modified by:   Harshitha Rao
 # @Last Modified time: 2020-12-21 10:45:04
-
+ 
 import numpy as np
 import tensorflow as tf
 import sys
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import clip_ops
+import random
 
 seed = 42
 np.random.seed(seed)
