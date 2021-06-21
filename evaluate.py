@@ -7,9 +7,10 @@ import tensorflow as tf
 import model.data as data
 import model.model as m
 import model.evaluate as e
-
+import pandas as pd
 
 def evaluate(model, dataset, params):
+    log_dir = os.path.join(params.model, 'logs')
     with tf.Session(config=tf.ConfigProto(
         inter_op_parallelism_threads=params.num_cores,
         intra_op_parallelism_threads=params.num_cores,
@@ -23,6 +24,8 @@ def evaluate(model, dataset, params):
         saver.restore(session, ckpt.model_checkpoint_path)
 
         print('computing vectors...')
+
+        recall_values = [0.0001, 0.0002, 0.0005, 0.002, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0]
 
         validation_labels = np.array(
             [[y] for y, _ in dataset.rows('validation', num_epochs=1)]
@@ -60,7 +63,6 @@ def evaluate(model, dataset, params):
 
         print('evaluating...')
 
-        recall_values = [0.0001, 0.0002, , 0.002, 0.01, 0.05, 0.2]
         results = e.evaluate(
             training_vectors,
             test_vectors,
@@ -68,8 +70,23 @@ def evaluate(model, dataset, params):
             test_labels,
             recall_values
         )
+
+        df_precision_recall = pd.DataFrame(list(zip(recall_values, results)),
+                columns=['recall','precision'])
+
         for i, r in enumerate(recall_values):
             print('precision @ {}: {}'.format(r, results[i]))
+
+        ###### Plot precision-recall values
+        df_precision_recall.to_csv(log_dir+'_precision_recall_values.csv', index=False)
+
+        img_precision_recall = df_precision_recall.plot( x='recall'
+                                                        ,y='precision' 
+                                                        ,kind='line'
+                                                        ,title='Precision vs Recall'
+                                                        ,xlabel="Recall"
+                                                        ,ylabel="Precision").get_figure()
+        img_precision_recall.savefig(log_dir+'_precision_recall.png')
 
 
 def main(args):
@@ -82,7 +99,7 @@ def main(args):
     x = tf.placeholder(tf.float32, shape=(None, params.vocab_size), name='x')
     z = tf.placeholder(tf.float32, shape=(None, params.z_dim), name='z')
     
-    model = m.ADM(x, z, params)
+    model = m.DocModel(x, z, params)
     evaluate(model, dataset, params)
 
 
@@ -92,9 +109,9 @@ def parse_args():
                         help='path to model output directory')
     parser.add_argument('--dataset', type=str, required=True,
                         help='path to the input dataset')
-    parser.add_argument('--batch-size', type=int, default=64,
+    parser.add_argument('--batch-size', type=int, default=512,
                         help='the batch size')
-    parser.add_argument('--num-cores', type=int, default=1,
+    parser.add_argument('--num-cores', type=int, default=2,
                         help='the number of CPU cores to use')
     return parser.parse_args()
 
