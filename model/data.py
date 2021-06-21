@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-# @Last Modified by:   Harshitha Rao
-# @Last Modified time: 2020-12-05 10:45:04
 import os
 import glob
 import random
@@ -26,7 +23,6 @@ class Dataset(object):
         self.path = path
         files = glob.glob(path + '/*.csv')
         self.collections = {file_name(file): file for file in files}
-        # print("CP 1 - ", self.collections)
 
     def rows(self, collection_name, num_epochs=None):
         if collection_name not in self.collections:
