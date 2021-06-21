@@ -26,16 +26,16 @@ def evaluate(
     query_labels,
     recall=[0.0002]
 ):
-    corpus_size = len(corpus_labels) #13192
-    query_size = len(query_labels)   #1884
+    corpus_size = len(corpus_labels) # 13192
+    query_size = len(query_labels)   # 1884
 
     results = []
     for r in recall:
-        n_docs = int((corpus_size * r) + 0.5) #3
+        n_docs = int((corpus_size * r) + 0.5) # 3
         if not n_docs:
             results.append(0.0)
             continue
-        closest = closest_docs_by_index(corpus_vectors, query_vectors, n_docs) #1884 X 3
+        closest = closest_docs_by_index(corpus_vectors, query_vectors, n_docs) # (1884 X 3)
         # print(closest)
 
         avg = 0.0
