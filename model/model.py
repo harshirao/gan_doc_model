@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-# @Last Modified by:   Harshitha Rao
-# @Last Modified time: 2020-12-21 10:45:04
- 
 import numpy as np
 import tensorflow as tf
 import sys
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import clip_ops
-import random
 
 seed = 42
 np.random.seed(seed)
@@ -58,40 +53,43 @@ def generator(z, size, output_size, ith_gen):
     h1 = tf.nn.leaky_relu(linear(z, size, ("g_%d_0" %ith_gen)), alpha=0.2)           # first layer 
     G_batchnorm = tf.layers.batch_normalization(h1, training=False)                   
     h2 = tf.nn.leaky_relu(linear(G_batchnorm, size, ("g_%d_1" %ith_gen)), alpha=0.2) # second layer
-    G_batchnorm2 = tf.layers.batch_normalization(h2, training=False)                  
-    G_prob = tf.nn.softmax(linear(G_batchnorm2, output_size, ("g_%d_2" %ith_gen)))
+    G_batchnorm2 = tf.layers.batch_normalization(h2, training=False)    
+    h3 = tf.nn.leaky_relu(linear(G_batchnorm2, size, ("g_%d_2" %ith_gen)), alpha=0.2) # third layer
+    G_batchnorm3 = tf.layers.batch_normalization(h3, training=False)       
+    G_prob = tf.nn.softmax(linear(G_batchnorm3, output_size, ("g_%d_3" %ith_gen)))
     return G_prob
 
 ############
 def alpha_gen(z, z_dim, h_dim, num_gen):
     al_W1 = tf.Variable(xavier_init([z_dim, h_dim]))
     al_b1 = tf.Variable(tf.zeros(shape=[h_dim]))
-    al_W2 = tf.Variable(xavier_init([h_dim, num_gen]))
+    al_W2 = tf.Variable(xavier_init([h_dim, num_gen])) 
     al_b2 = tf.Variable(tf.zeros(shape=[num_gen]))
+    theta_G = [al_W1, al_W2, al_b1, al_b2]
 
-    al_h1 = tf.nn.leaky_relu(tf.matmul(z, al_W1) + al_b1, alpha=0.2)
+    al_h1 = tf.nn.leaky_relu(tf.matmul(z, al_W1) + al_b1, alpha=0.2)        # first layer 
     al_batchnorm = tf.layers.batch_normalization(al_h1, training = False)
-    al_log_prob = tf.matmul(al_batchnorm, al_W2) + al_b2
+    al_log_prob = tf.matmul(al_batchnorm, al_W2) + al_b2                    # second layer
     al_prob = tf.nn.softmax(al_log_prob)
-    return al_prob
-
+    return al_prob, theta_G
+    
 ############
 def discriminator(x, size, h_dim):
-    """ Discriminator model, returns the probability of the samples at x be real """
     D_W1 = tf.Variable(xavier_init([size, h_dim]))
     D_b1 = tf.Variable(tf.zeros(shape=[h_dim]))
     D_W2 = tf.Variable(xavier_init([h_dim, 1]))
     D_b2 = tf.Variable(tf.zeros(shape=[1]))
+    theta_D = [D_W1, D_W2, D_b1, D_b2]
 
     D_h1 = tf.nn.leaky_relu((tf.matmul(x, D_W1) + D_b1), alpha=0.2) # first layer 
-    D_logit = tf.matmul(D_h1, D_W2) + D_b2                          # second layer 
+    D_logit = tf.matmul(D_h1, D_W2) + D_b2                       
     D_prob = tf.nn.sigmoid(D_logit)
-    return D_prob, D_logit, D_h1
+    return D_prob, D_logit, D_h1, theta_D
 
 ############
 def gradients_a(opt, loss, vars, step, max_gradient_norm=None, dont_clip=[]):
     gradients = opt.compute_gradients(loss, vars)
-    # Add histograms for variables, gradients and gradient norms
+    # Add histograms for variables, gradients and gradient norms in Tensorboard
     for gradient, variable in gradients:
         if isinstance(gradient, ops.IndexedSlices):
             grad_values = gradient.values
@@ -109,7 +107,7 @@ def gradients_a(opt, loss, vars, step, max_gradient_norm=None, dont_clip=[]):
     return opt.apply_gradients(gradients, global_step=step)
 
 ############################################################
-class ADM(object):
+class DocModel(object):
     def __init__(self, x, z, params):
         self.x = x
         self.z = z
@@ -119,26 +117,26 @@ class ADM(object):
         self.generators = []
         for i in range(0, params.num_gen):
             with tf.variable_scope('generator_'+str(i), reuse=tf.AUTO_REUSE):
-                self.gen_i = generator(z, params.g_i_dim, params.vocab_size, i)                 # shape=(?, 2000)
+                self.gen_i = generator(z, params.g_i_dim, params.vocab_size, i)                                 # shape=(?, 2000)
                 self.generators.append(self.gen_i)
         
         ####### Alpha Generator init
         with tf.variable_scope('alpha_generator', reuse=tf.AUTO_REUSE):
-            self.alpha_generator = alpha_gen(z, params.z_dim, params.d_dim, params.num_gen)     # shape=(?, 5)
+            self.alpha_generator, self.theta_G = alpha_gen(z, params.z_dim, params.d_dim, params.num_gen)       # shape=(?, 5)
         
         ####### Combined Generator init
         with tf.variable_scope('G_sample', reuse=tf.AUTO_REUSE):
-            self.G_sample = tf.Variable(tf.zeros(shape=[params.batch_size, params.vocab_size])) # shape=(512, 2000)
+            self.G_sample = tf.Variable(tf.zeros(shape=[params.batch_size, params.vocab_size]))                 # shape=(512, 2000)
             for i in range(0, params.num_gen):
                 self.G_sample = self.G_sample + self.alpha_generator[:,i][:,np.newaxis] * self.generators[i]
         
         ####### Discriminator init: Real inputs to Discriminator
         with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
-            self.D_real, self.D_logit_real, self.rep = discriminator(x, params.vocab_size, params.d_dim)
+            self.D_real, self.D_logit_real, self.rep, self.theta_D = discriminator(x, params.vocab_size, params.d_dim)
 
         ####### Discriminator init: Fake inputs to Discriminator
         with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
-            self.D_fake, self.D_logit_fake, _ = discriminator(self.G_sample, params.vocab_size, params.d_dim)
+            self.D_fake, self.D_logit_fake, _, _ = discriminator(self.G_sample, params.vocab_size, params.d_dim)
 
 
         ##################### Define Losses #####################
@@ -152,7 +150,7 @@ class ADM(object):
         
         ####### Mean Loss of Generator
         self.Gen_loss = []
-        for i in range(params.num_gen):
+        for i in range(0, params.num_gen):
             temp = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = self.D_logit_fake, \
                                                                             labels = tf.ones_like(self.D_logit_fake)))
             self.Gen_loss.append(temp)
@@ -169,13 +167,13 @@ class ADM(object):
         ####### Optimize Discriminator
         self.d_params = [v for v in vars if v.name.startswith('discriminator')]
 
-        self.D_solver, _ = gradients_a(
+        self.D_solver = gradients_a(
             opt = tf.train.AdamOptimizer(
                 learning_rate = params.learning_rate,
                 beta1 = 0.5
             ),
             loss = self.D_loss,
-            vars = self.d_params,
+            vars = self.theta_D, 
             step = step
         )
 
@@ -183,7 +181,7 @@ class ADM(object):
         g_params=[]
         self.G_solver=[]
         
-        for i in range(params.num_gen):
+        for i in range(0, params.num_gen):
             g_var = [v for v in vars if v.name.startswith('generator_'+str(i))]
             g_params.append(g_var)
             solver = gradients_a(
@@ -205,8 +203,7 @@ class ADM(object):
                 learning_rate = params.learning_rate,
                 beta1 = 0.5
             ),
-            loss=self.Al_gen_loss,
-            vars=self.al_params,
-            step=step
+            loss = self.Al_gen_loss,
+            vars = self.theta_G, 
+            step = step
         )
-
