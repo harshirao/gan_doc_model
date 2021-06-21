@@ -55,7 +55,7 @@ def main(args):
     dataset = data.Dataset(args.dataset)
     x = tf.placeholder(tf.float32, shape=(None, params.vocab_size), name='x')
     z = tf.placeholder(tf.float32, shape=(None, params.z_dim), name='z')
-    model = m.ADM(x, z, params)
+    model = m.DocModel(x, z, params)
     vectors(model, dataset, params)
 
 
@@ -65,14 +65,13 @@ def parse_args():
                         help='path to model output directory')
     parser.add_argument('--dataset', type=str, required=True,
                         help='path to the input dataset')
-    parser.add_argument('--batch-size', type=int, default=64,
+    parser.add_argument('--batch-size', type=int, default=512,
                         help='the batch size')
-    parser.add_argument('--num-cores', type=int, default=1,
+    parser.add_argument('--num-cores', type=int, default=2,
                         help='the number of CPU cores to use')
     parser.add_argument('--gpu-memory', type=float, default=0.25,
                         help='the ammount of GPU memory used')
     return parser.parse_args()
-
 
 if __name__ == '__main__':
     main(parse_args())
