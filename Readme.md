@@ -1,5 +1,4 @@
 # Document modeling with Generative Adversarial Networks
-[Inspired from https://github.com/AYLIEN/adversarial-document-model]
 
 The below steps need to be run to generate documents using this GAN model.
 
@@ -72,3 +71,5 @@ where: `dataset` is `path to preprocessed dataset`; `model` is `path to trained 
  
 where: `dataset` is `path to preprocessed dataset`; `model` is `path to trained model directory`
 
+
+[Base code inspired from https://github.com/AYLIEN/adversarial-document-model]
