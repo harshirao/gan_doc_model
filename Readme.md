@@ -1,8 +1,10 @@
 # Document modeling with Generative Adversarial Networks
 
+## Setup Guide:
+
 The below steps need to be run to generate documents using this GAN model.
 
-### Requirements
+#### Requirements
 1. Ensure that Python 3 is installed before installing remaining dependencies 
 2. Create a virtual environment (conda or pip3) to run the solution
 - Create a `pip3` virtual environment to run the model, using below commands:
@@ -22,14 +24,14 @@ The below steps need to be run to generate documents using this GAN model.
 	`$ pip install -r requirements.txt`
 
 
-### Data Population
+#### Data Population
 1. Run below command to prepare the raw input dataset (consisting of 18,846 documents), and split over train-test-validation datasets:  
         
 	`$ python prepare.py` 
 2. 3 new files (`training.csv` (13,192 documents); `validation.csv` (1,884 documents); `test.csv` (3,769 documents)) are populated in the `/data` folder. In each CSV file, the 1st column is the label and 2nd column is the raw text document body.
 
 
-### Data Preprocessing
+#### Data Preprocessing
 1. Run below command to pre-process the input raw data to the vectorized format expected by the model:  
         
 	`$ python preprocess.py --input data --output preprocessed_data --vocab data/20newsgroups.vocab`
@@ -39,7 +41,7 @@ where: `input` is `path to input dataset`; `output` is `path to preprocessed out
 2. 4 new files (`training.csv`; `validation.csv`; `test.csv`; `labels.txt`) are populated in the `/preprocessed_data` folder. In each CSV file, the 1st column is the label and 2nd column is the vectorized document body. The text file consists of the 20 groups of 20NewsGroups corpus.
 
 
-### Model Training
+#### Model Training
 1. Run below command to train the GAN model:
 	
 	`$ python train.py --dataset preprocessed_data --model results`
@@ -57,14 +59,14 @@ where: `logdir` is `path to results logs directory`
 	`$ python train.py --help`
 
 
-### Evaluating results
+#### Evaluating results
 1. Run below command to evaluate the retrieval results: 
         
 	`$ python evaluate.py --dataset preprocessed_data --model results` 
  
 where: `dataset` is `path to preprocessed dataset`; `model` is `path to trained model directory`       
         
-### Extracting document vectors 
+#### Extracting document vectors 
 1. Run below command to extract document vectors which will be saved in NumPy text format to the model directory: 
         
 	`$ python vectors.py --dataset preprocessed_data --model results` 
@@ -72,4 +74,5 @@ where: `dataset` is `path to preprocessed dataset`; `model` is `path to trained 
 where: `dataset` is `path to preprocessed dataset`; `model` is `path to trained model directory`
 
 
-[Base code inspired from https://github.com/AYLIEN/adversarial-document-model]
+
+Note: [Base code inspired from https://github.com/AYLIEN/adversarial-document-model]
