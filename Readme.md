@@ -1,5 +1,6 @@
 # Document modeling with Generative Adversarial Networks
 [Inspired from https://github.com/AYLIEN/adversarial-document-model]
+
 The below steps need to be run to generate documents using this GAN model.
 
 ### Requirements
